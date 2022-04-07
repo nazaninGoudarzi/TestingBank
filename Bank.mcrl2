@@ -1,0 +1,23 @@
+act
+	add_to_balance,setter,set : Int#Int;
+	get_user_balance,getter,get,withdraw_b,withdraw,withd : Int;
+	setInit,RETURN,setOldCustomer,setNewCustomer : List(List(Int));
+
+proc 
+	initiator(initialValue: List(List(Int))) = setInit(initialValue).user;
+	
+	user = (get_user_balance(address) + add_to_balance(address,value) + withdraw_b(address));
+	
+	getUserBalance(address: Int) = getter(address).RETURN([[address]]).user;
+	
+	addToBalance(address: Int, value: Int) = setter(address,value).
+			((address in [head([initialValue])]) -> setOldCustomer([address[value + [address[]]]])
+			<> setNewCustomer([address[value]])).user;
+	
+	withdrawBalance(address : Int) = withdraw(address).
+			(initialValue[address[]] != 0) -> setOldCustomer([address[0]]) <> delta .user;
+
+init
+	allow({get,set,withd},
+		comm({get_user_balance|getter -> get, add_to_balance|setter -> set,withdraw_b|withdraw -> withd},
+			initiator));
