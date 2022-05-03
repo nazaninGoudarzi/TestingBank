@@ -1,25 +1,58 @@
+sort TwoDarray;
+cons empty : TwoDarray;
+	 add : Int#Int#TwoDarray -> TwoDarray;
+map
+	arrayHead : TwoDarray -> Int;
+	size : TwoDarray -> Nat;
+	retValue : Int#TwoDarray -> Int;
+	delete : Int#TwoDarray -> TwoDarray;
+var
+	array : TwoDarray;
+	a,b : Int;
+eqn
+	arrayHead(add(a,b,array)) = a;
+	size(empty) = 0;
+	size(add(a,b,array)) = succ(size(array));
+	retValue(a,add(a,b,array)) = if(arrayHead(array) == a,b,0);
+	delete(a,add(a,b,array)) = add(a,0,array);
+%-------------------------------------------------
 act
-	add_to_balance,setter,set : Int#Int;
-	get_user_balance,getter,get,withdraw_b,withdraw,withd : Int;
-	setInit,ret,setOldCustomer,setNewCustomer : List(List(Int));
+	add_to_balance,set,initAddBalance : Int#Int;
+	get_user_balance,get,withdraw_b,withd,ret,initGetter,initWithdraw : Int;
+	setInit,addition,plus : TwoDarray;
+	setNewCustomer,setOldCustomer;
+	sendToGetter,sendToWithdraw,withdraw,lastWithdraw,getter,lastGet : Int#TwoDarray;
+	sendToSetter,setter,lastSet : Int#Int#TwoDarray;
 
 proc 
-	initiator = sum initialValue:List(List(Int)).setInit(initialValue).user;
+	initiator = sum initialValue:TwoDarray.setInit(initialValue).
+				(sum address: Int.
+				(initGetter(address).sendToGetter(address,initialValue) +
+				(sum value: Int.initAddBalance(address,value).sendToSetter(address,value,initialValue)) +
+				initWithdraw(address).sendToWithdraw(address,initialValue))).
+				initiator;
 	
-	user = (sum address:Int.get_user_balance(address) + 
-			sum address:Int.(sum value:Int.add_to_balance(address,value)) + 
-			sum address:Int.withdraw_b(address));
+	user = sum address: Int.
+		  (get_user_balance(address) + 
+		  (sum value: Int.add_to_balance(address,value)) + 
+		   withdraw_b(address)).
+		   user;
 	
-	getUserBalance(address: Int) = getter(address).ret([[address]]).user;
+	getUserBalance(address: Int,initialValue: TwoDarray) = getter(address,initialValue).
+			ret(retValue(address,initialValue));
 	
-	addToBalance(address: Int, value: Int) = setter(address,value).
-			((address in [[head(initialValue)]]) -> setOldCustomer([address[value + [address[]]]])
-			<> setNewCustomer([address[value]])).user;
+	addToBalance(address: Int, value: Int,initialValue: TwoDarray) = setter(address,value,initialValue).
+			(setNewCustomer.addition(add(address,value,initialValue)) + 
+			 sum oldValue: Int.setOldCustomer.addition(add(address,oldValue + value,initialValue)));
 	
-	withdrawBalance(address : Int) = withdraw(address).
-			(initialValue[address[]] != 0) -> setOldCustomer([address[0]]) <> delta .user;
+	withdrawBalance(address : Int,initialValue: TwoDarray) = withdraw(address,initialValue).
+			(retValue(address,initialValue) != 0) -> setOldCustomer.addition(add(address,0,initialValue)) <> delta;
 
 init
-	allow({get,set,withd},
-		comm({get_user_balance|getter -> get, add_to_balance|setter -> set,withdraw_b|withdraw -> withd},
-			initiator));
+	hide({lastGet,lastSet,lastWithdraw},
+		allow({get,set,withd,lastGet,lastSet,lastWithdraw},
+			comm({get_user_balance|initGetter -> get,sendToGetter|getter -> lastGet,
+			add_to_balance|initAddBalance -> set,sendToSetter|setter -> lastSet,
+			withdraw_b|initWithdraw -> withd,sendToWithdraw|withdraw -> lastWithdraw},
+				initiator || user || getUserBalance(1,add(1,20,empty)) || 
+				addToBalance(2,40,add(1,20,empty)) || withdrawBalance(2,add(2,40,add(1,20,empty))))));
