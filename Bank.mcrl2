@@ -1,58 +1,49 @@
-sort TwoDarray;
-cons empty : TwoDarray;
-	 add : Int#Int#TwoDarray -> TwoDarray;
+sort mapping;
+cons empty : mapping;
+	 add : Int#Int#mapping -> mapping;
 map
-	arrayHead : TwoDarray -> Int;
-	size : TwoDarray -> Nat;
-	retValue : Int#TwoDarray -> Int;
-	delete : Int#TwoDarray -> TwoDarray;
+	arrayHead : mapping -> Int;
+	size : mapping -> Nat;
+	retValue : Int#mapping -> Int;
+	delete : Int#mapping -> mapping;
+	search : Int#mapping -> Bool;
 var
-	array : TwoDarray;
-	a,b : Int;
+	array : mapping;
+	a,b,c : Int;
 eqn
 	arrayHead(add(a,b,array)) = a;
 	size(empty) = 0;
 	size(add(a,b,array)) = succ(size(array));
-	retValue(a,add(a,b,array)) = if(arrayHead(array) == a,b,0);
+	retValue(a,add(c,b,array)) = if(c == a,b,0);
 	delete(a,add(a,b,array)) = add(a,0,array);
+	search(a,empty) = false;
+	search(a,add(c,b,array)) = if(a == c,true,false);
 %-------------------------------------------------
 act
-	add_to_balance,set,initAddBalance : Int#Int;
-	get_user_balance,get,withdraw_b,withd,ret,initGetter,initWithdraw : Int;
-	setInit,addition,plus : TwoDarray;
-	setNewCustomer,setOldCustomer;
-	sendToGetter,sendToWithdraw,withdraw,lastWithdraw,getter,lastGet : Int#TwoDarray;
-	sendToSetter,setter,lastSet : Int#Int#TwoDarray;
+	call_addToBalance,get_addToBalance,set : Int#Int;
+	call_userBalance,get_userBalance,balance,call_withdrawBalance,get_withdrawBalance,withd : Int;
+	call_returnWithdraw,get_returnWithdraw,retWithdraw,get_returnBalance,call_returnBalance,retBalance : Int;
+	setNewCustomer,setOldCustomer,update_user : mapping;
+	success,fail;
 
 proc 
-	initiator = sum initialValue:TwoDarray.setInit(initialValue).
-				(sum address: Int.
-				(initGetter(address).sendToGetter(address,initialValue) +
-				(sum value: Int.initAddBalance(address,value).sendToSetter(address,value,initialValue)) +
-				initWithdraw(address).sendToWithdraw(address,initialValue))).
-				initiator;
+	user(address:Int,value:Int) = (call_addToBalance(address,value) + 
+		call_userBalance(address).(sum returnValue:Int.get_returnBalance(returnValue)) + 
+		call_withdrawBalance(address).(sum returnValue:Int.get_returnWithdraw(returnValue)))
+	.user(address,value);
 	
-	user = sum address: Int.
-		  (get_user_balance(address) + 
-		  (sum value: Int.add_to_balance(address,value)) + 
-		   withdraw_b(address)).
-		   user;
-	
-	getUserBalance(address: Int,initialValue: TwoDarray) = getter(address,initialValue).
-			ret(retValue(address,initialValue));
-	
-	addToBalance(address: Int, value: Int,initialValue: TwoDarray) = setter(address,value,initialValue).
-			(setNewCustomer.addition(add(address,value,initialValue)) + 
-			 sum oldValue: Int.setOldCustomer.addition(add(address,oldValue + value,initialValue)));
-	
-	withdrawBalance(address : Int,initialValue: TwoDarray) = withdraw(address,initialValue).
-			(retValue(address,initialValue) != 0) -> setOldCustomer.addition(add(address,0,initialValue)) <> delta;
-
+	Bank(userBalances:mapping) = 
+		(sum address:Int.get_userBalance(address).call_returnBalance(retValue(address,userBalances)) +
+		(sum address:Int.sum value:Int.get_addToBalance(address,value).
+			(!search(address,userBalances) -> setNewCustomer(add(address,value,userBalances)) <>
+			setOldCustomer(add(address,(retValue(address,userBalances)) + value,userBalances)))) +
+		sum address:Int.get_withdrawBalance(address).call_returnWithdraw(retValue(address,userBalances)).
+			(success.update_user(delete(address,userBalances))) + fail)
+		.Bank(userBalances);
 init
-	hide({lastGet,lastSet,lastWithdraw},
-		allow({get,set,withd,lastGet,lastSet,lastWithdraw},
-			comm({get_user_balance|initGetter -> get,sendToGetter|getter -> lastGet,
-			add_to_balance|initAddBalance -> set,sendToSetter|setter -> lastSet,
-			withdraw_b|initWithdraw -> withd,sendToWithdraw|withdraw -> lastWithdraw},
-				initiator || user || getUserBalance(1,add(1,20,empty)) || 
-				addToBalance(2,40,add(1,20,empty)) || withdrawBalance(2,add(2,40,add(1,20,empty))))));
+	%hide({lastGet,lastSet,lastWithdraw},
+		allow({balance,set,withd,retBalance,retWithdraw},
+			comm({call_userBalance|get_userBalance -> balance,call_returnBalance|get_returnBalance -> retBalance,
+			call_addToBalance|get_addToBalance -> set,
+			call_withdrawBalance|get_withdrawBalance -> withd,call_returnWithdraw|get_returnWithdraw -> retWithdraw},
+				 user(25,100) || user(44,200) || Bank(add(4,150,empty))));
