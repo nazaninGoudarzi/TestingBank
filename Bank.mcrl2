@@ -33,16 +33,17 @@ proc
 	.user(address,value);
 	
 	Bank(userBalances:mapping) = 
-		(sum address:Int.get_userBalance(address).call_returnBalance(retValue(address,userBalances)) +
-		(sum address:Int.sum value:Int.get_addToBalance(address,value).
-			(!search(address,userBalances) -> setNewCustomer(add(address,value,userBalances)) <>
-			setOldCustomer(add(address,(retValue(address,userBalances)) + value,userBalances)))) +
+		sum address:Int.get_userBalance(address).call_returnBalance(retValue(address,userBalances)).
+			Bank(userBalances)+
+		sum address:Int.sum value:Int.get_addToBalance(address,value).
+			(!search(address,userBalances) -> setNewCustomer(add(address,value,userBalances)).
+				Bank(userBalances) <>
+			setOldCustomer(add(address,(retValue(address,userBalances)) + value,userBalances)).
+				Bank(userBalances)) +
 		sum address:Int.get_withdrawBalance(address).call_returnWithdraw(retValue(address,userBalances)).
-			(success.update_user(delete(address,userBalances))) + fail)
-		.Bank(userBalances);
+			(success.update_user(delete(address,userBalances)).Bank(userBalances) + fail.Bank(userBalances));
 init
-	%hide({lastGet,lastSet,lastWithdraw},
-		allow({balance,set,withd,retBalance,retWithdraw},
+	allow({balance,set,withd,retBalance,retWithdraw},
 			comm({call_userBalance|get_userBalance -> balance,call_returnBalance|get_returnBalance -> retBalance,
 			call_addToBalance|get_addToBalance -> set,
 			call_withdrawBalance|get_withdrawBalance -> withd,call_returnWithdraw|get_returnWithdraw -> retWithdraw},
