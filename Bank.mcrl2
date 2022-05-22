@@ -6,42 +6,47 @@ map
 	size : mapping -> Nat;
 	retValue : Int#mapping -> Int;
 	delete : Int#mapping -> mapping;
+	setZero : Int#mapping -> mapping;
 	search : Int#mapping -> Bool;
+	update: Int#Int#mapping -> mapping;
 var
 	array : mapping;
-	a,b,c : Int;
+	a,b,c,d : Int;
 eqn
 	arrayHead(add(a,b,array)) = a;
 	size(empty) = 0;
 	size(add(a,b,array)) = succ(size(array));
-	retValue(a,add(c,b,array)) = if(c == a,b,0);
-	delete(a,add(a,b,array)) = add(a,0,array);
+	retValue(a,empty) = 0;
+	retValue(a,add(c,b,array)) = if(c == a,b,retValue(a,array));
+	delete(a,add(a,b,array)) = add(0,0,array);
+	setZero(a,add(a,b,array)) = add(a,0,array);
 	search(a,empty) = false;
-	search(a,add(c,b,array)) = if(a == c,true,false);
+	search(a,add(c,b,array)) = if(a == c,true,search(a,array));
+	update(a,b,empty) = empty;
+	%update(a,b,add(c,d,array)) = if(a == c,and(delete(a,add(c,d,array)),add(a,b,array)),update(a,b,array));
 %-------------------------------------------------
 act
 	call_addToBalance,get_addToBalance,set : Int#Int;
 	call_userBalance,get_userBalance,balance,call_withdrawBalance,get_withdrawBalance,withd : Int;
 	call_returnWithdraw,get_returnWithdraw,retWithdraw,get_returnBalance,call_returnBalance,retBalance : Int;
-	setNewCustomer,setOldCustomer,update_user : mapping;
+	oldCustomer : mapping;
 	success,fail;
 
 proc 
-	user(address:Int,value:Int) = (call_addToBalance(address,value) + 
-		call_userBalance(address).(sum returnValue:Int.get_returnBalance(returnValue)) + 
-		call_withdrawBalance(address).(sum returnValue:Int.get_returnWithdraw(returnValue)))
-	.user(address,value);
+	user(address:Int,value:Int) = call_addToBalance(address,value).user(address,value) + 
+		call_userBalance(address).sum returnValue:Int.get_returnBalance(returnValue).user(address,value) + 
+		call_withdrawBalance(address).sum returnValue:Int.get_returnWithdraw(returnValue).user(address,value);
 	
 	Bank(userBalances:mapping) = 
 		sum address:Int.get_userBalance(address).call_returnBalance(retValue(address,userBalances)).
 			Bank(userBalances)+
 		sum address:Int.sum value:Int.get_addToBalance(address,value).
-			(!search(address,userBalances) -> setNewCustomer(add(address,value,userBalances)).
-				Bank(userBalances) <>
-			setOldCustomer(add(address,(retValue(address,userBalances)) + value,userBalances)).
-				Bank(userBalances)) +
+			((!search(address,userBalances)) -> Bank(add(address,value,userBalances)) <>
+			oldCustomer(delete(address,userBalances)).
+			Bank(add(address,retValue(address,userBalances)+ value,userBalances))) +
 		sum address:Int.get_withdrawBalance(address).call_returnWithdraw(retValue(address,userBalances)).
-			(success.update_user(delete(address,userBalances)).Bank(userBalances) + fail.Bank(userBalances));
+			(success.Bank(setZero(address,userBalances)) + 
+			fail.Bank(userBalances));
 init
 	allow({balance,set,withd,retBalance,retWithdraw},
 			comm({call_userBalance|get_userBalance -> balance,call_returnBalance|get_returnBalance -> retBalance,
